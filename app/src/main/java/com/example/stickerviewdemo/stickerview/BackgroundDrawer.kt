@@ -67,7 +67,6 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                     stickerView.invalidate()
                 }
 
-                //双指缩放
                 if (event.pointerCount == 2) {
                     val p1 = PointF(event.getX(0), event.getY(0))
                     val p2 = PointF(event.getX(1), event.getY(1))
@@ -77,13 +76,23 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                     val x = array[2]
                     val y = array[5]
                     val oldRatio = array[0]
-                    Log.e(TAG, "onTouchEvent: $matrix")
+
+                    //双指缩放
                     matrix.postScale(newRatio,
                         newRatio,
                         x + bitmap.width * oldRatio / 2,
                         y + bitmap.height * oldRatio / 2)
-                    stickerView.invalidate()
                     distance = newDistance
+
+                    //双指旋转
+                    val d1 = StickerUtils.calculateDegree(point1,point2)
+                    val d2 = StickerUtils.calculateDegree(p1, p2)
+                    matrix.postRotate((d2-d1).toFloat(),
+                        x + bitmap.width * oldRatio / 2,
+                        y + bitmap.height * oldRatio / 2)
+                    point1 = p1
+                    point2 = p2
+                    stickerView.invalidate()
                 }
             }
 
@@ -128,7 +137,7 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
             anim.addUpdateListener {
                 val value = it.animatedValue as Float
                 matrix.getValues(array)
-                if (x < 0 ) {
+                if (x < 0) {
                     matrix.postTranslate(x * value - array[2], 0f)
                 }
                 if (x + bW > vW) {
