@@ -4,11 +4,13 @@ import android.content.Context
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.PointF
 import android.net.Uri
 import android.util.TypedValue
 import java.io.InputStream
+import kotlin.math.sqrt
 
-object ImageUtils {
+object StickerUtils {
 
     fun setImage(context: Context? = null, image:Any): Bitmap? {
         when(image){
@@ -35,5 +37,10 @@ object ImageUtils {
 
     fun px2dp(px:Float): Float {
         return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_PX,px,Resources.getSystem().displayMetrics)
+    }
+
+    fun calculateDistance(point1: PointF, point2: PointF): Float {
+        return sqrt((point1.x - point2.x) * (point1.x - point2.x) +
+                (point1.y - point2.y) * (point1.y - point2.y) )
     }
 }

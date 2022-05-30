@@ -2,16 +2,10 @@ package com.example.stickerviewdemo.stickerview
 
 import android.animation.ValueAnimator
 import android.graphics.*
-import android.media.Image
 import android.util.Log
 import android.view.MotionEvent
 import android.view.animation.AccelerateDecelerateInterpolator
 import com.example.stickerviewdemo.R
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlin.coroutines.CoroutineContext
 
 /**
  * 贴纸背景
@@ -29,21 +23,17 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
     //matrix展开后的数组 [2][5]代表位置x,y
     private val array = FloatArray(9)
 
-    //缩放
-    private var ratio = -1f
-
     init {
         stickerView.post {
-            ratio = stickerView.width.toFloat() / bitmap.width
-            val tempMatrix = Matrix()
-            tempMatrix.setScale(ratio,ratio)
-            val scope = CoroutineScope(Dispatchers.IO)
-            scope.launch {
-                bitmap = Bitmap.createBitmap(bitmap,0,0,bitmap.width,bitmap.height,tempMatrix,false)
-                withContext(Dispatchers.Main){
-                    stickerView.invalidate()
-                }
-            }
+            //缩放图片与view等宽，将图片移动到view中间
+            val ratio = stickerView.width.toFloat() / bitmap.width
+            matrix.setScale(ratio, ratio, bitmap.width / 2f, bitmap.height / 2f)
+            matrix.getValues(array)
+            val dx = (bitmap.width - bitmap.width * array[0]) / 2
+            val dy = (bitmap.height - bitmap.height * array[0]) / 2
+            matrix.postTranslate(-1 * dx, -1 * dy)
+            matrix.postTranslate(0f, (stickerView.height - bitmap.height * array[0]) / 2)
+            stickerView.invalidate()
         }
     }
 
@@ -53,6 +43,7 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
 
     private val point1 = PointF(0f, 0f)
     private val point2 = PointF(0f, 0f)
+    private var distance = 0f
 
     override fun onTouchEvent(event: MotionEvent?): Boolean {
         //这里使用actionMasked，只有actionMask才能检测到多指按下
@@ -75,15 +66,43 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                     point1.y = event.y
                     stickerView.invalidate()
                 }
+
+                //双指缩放
+                if (event.pointerCount == 2) {
+                    val p1 = PointF(event.getX(0), event.getY(0))
+                    val p2 = PointF(event.getX(1), event.getY(1))
+                    val newDistance = StickerUtils.calculateDistance(p1, p2)
+                    val newRatio = newDistance / distance
+                    matrix.getValues(array)
+                    val x = array[2]
+                    val y = array[5]
+                    val oldRatio = array[0]
+                    Log.e(TAG, "onTouchEvent: $matrix", )
+                    matrix.postScale(newRatio,
+                        newRatio,
+                        (x + bitmap.width * oldRatio) / 2,
+                        (y + bitmap.height * oldRatio) / 2)
+                    stickerView.invalidate()
+                    distance = newDistance
+                }
             }
+
             MotionEvent.ACTION_POINTER_DOWN -> {
 
+                if (event.pointerCount == 2) {
+                    point1.x = event.getX(0)
+                    point1.y = event.getY(0)
+                    point2.x = event.getX(1)
+                    point2.y = event.getY(1)
+                    distance = StickerUtils.calculateDistance(point1, point2)
+                }
             }
 
             MotionEvent.ACTION_UP -> {
                 matrix.getValues(array)
                 val x = array[2]
                 val y = array[5]
+                Log.e(TAG, "onTouchEvent: $x $y")
                 rebound(x, y)
             }
         }
@@ -94,8 +113,10 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
      * 当图片超出view的边界时，回弹到中心
      */
     private fun rebound(x: Float, y: Float) {
-        val bW = bitmap.width
-        val bH = bitmap.height
+        matrix.getValues(array)
+        val scaleRatio = array[0]
+        val bW = bitmap.width * scaleRatio
+        val bH = bitmap.height * scaleRatio
         val vW = stickerView.width
         val vH = stickerView.height
 
@@ -112,13 +133,15 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                 if (x < 0 || x + bW > vW) {
                     matrix.postTranslate(x * value - array[2], 0f)
                 }
-                //y表示它本来在哪； array[5]表示当前在哪
+                if (x + bW > vW) {
+                    matrix.postTranslate((x - (vW - bW)) * value + (vW - bW) - array[2], 0f)
+                }
                 if (y < 0) {
                     matrix.postTranslate(0f, y * value - array[5])
                 }
                 if (y + bH > vH) {
                     //计算当前需要移动的距离 = 当前目的位置 - 当前位置
-                    matrix.postTranslate(0f,(y-(vH-bH)) * value + (vH-bH) -array[5])
+                    matrix.postTranslate(0f, (y - (vH - bH)) * value + (vH - bH) - array[5])
                 }
                 stickerView.invalidate()
             }
@@ -127,6 +150,6 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
     }
 
     fun setImage(image: Any) {
-        bitmap = ImageUtils.setImage(stickerView.context, image)
+        bitmap = StickerUtils.setImage(stickerView.context, image)
     }
 }
