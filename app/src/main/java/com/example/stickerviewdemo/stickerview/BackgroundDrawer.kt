@@ -41,8 +41,8 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
         canvas?.drawBitmap(bitmap, matrix, paint)
     }
 
-    private val point1 = PointF(0f, 0f)
-    private val point2 = PointF(0f, 0f)
+    private var point1 = PointF(0f, 0f)
+    private var point2 = PointF(0f, 0f)
     private var distance = 0f
 
     override fun onTouchEvent(event: MotionEvent?): Boolean {
@@ -77,11 +77,11 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                     val x = array[2]
                     val y = array[5]
                     val oldRatio = array[0]
-                    Log.e(TAG, "onTouchEvent: $matrix", )
+                    Log.e(TAG, "onTouchEvent: $matrix")
                     matrix.postScale(newRatio,
                         newRatio,
-                        (x + bitmap.width * oldRatio) / 2,
-                        (y + bitmap.height * oldRatio) / 2)
+                        x + bitmap.width * oldRatio / 2,
+                        y + bitmap.height * oldRatio / 2)
                     stickerView.invalidate()
                     distance = newDistance
                 }
@@ -90,10 +90,8 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
             MotionEvent.ACTION_POINTER_DOWN -> {
 
                 if (event.pointerCount == 2) {
-                    point1.x = event.getX(0)
-                    point1.y = event.getY(0)
-                    point2.x = event.getX(1)
-                    point2.y = event.getY(1)
+                    point1 = PointF(event.getX(0), event.getY(0))
+                    point2 = PointF(event.getX(1), event.getY(1))
                     distance = StickerUtils.calculateDistance(point1, point2)
                 }
             }
@@ -121,7 +119,7 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
         val vH = stickerView.height
 
         if (x < 0 ||
-            y - bH / 2 + vH / 2 < 0 ||
+            y < 0 ||
             x + bW > vW ||
             y + bH > vH
         ) {
@@ -130,17 +128,17 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
             anim.addUpdateListener {
                 val value = it.animatedValue as Float
                 matrix.getValues(array)
-                if (x < 0 || x + bW > vW) {
+                if (x < 0 ) {
                     matrix.postTranslate(x * value - array[2], 0f)
                 }
                 if (x + bW > vW) {
                     matrix.postTranslate((x - (vW - bW)) * value + (vW - bW) - array[2], 0f)
                 }
+
                 if (y < 0) {
                     matrix.postTranslate(0f, y * value - array[5])
                 }
                 if (y + bH > vH) {
-                    //计算当前需要移动的距离 = 当前目的位置 - 当前位置
                     matrix.postTranslate(0f, (y - (vH - bH)) * value + (vH - bH) - array[5])
                 }
                 stickerView.invalidate()
