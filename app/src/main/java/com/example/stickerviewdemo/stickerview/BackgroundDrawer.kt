@@ -2,10 +2,13 @@ package com.example.stickerviewdemo.stickerview
 
 import android.animation.ValueAnimator
 import android.graphics.*
+import android.graphics.Matrix.*
 import android.util.Log
 import android.view.MotionEvent
 import android.view.animation.AccelerateDecelerateInterpolator
 import com.example.stickerviewdemo.R
+import kotlin.math.atan2
+import kotlin.math.roundToInt
 
 /**
  * 贴纸背景
@@ -20,7 +23,7 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
     //保存图片缩放、位置、旋转等信息
     private val matrix = Matrix()
 
-    //matrix展开后的数组 [2][5]代表位置x,y
+    //matrix展开后的数组 MTRANS_X
     private val array = FloatArray(9)
 
     init {
@@ -29,10 +32,10 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
             val ratio = stickerView.width.toFloat() / bitmap.width
             matrix.setScale(ratio, ratio, bitmap.width / 2f, bitmap.height / 2f)
             matrix.getValues(array)
-            val dx = (bitmap.width - bitmap.width * array[0]) / 2
-            val dy = (bitmap.height - bitmap.height * array[0]) / 2
+            val dx = (bitmap.width - bitmap.width * array[MSCALE_X]) / 2
+            val dy = (bitmap.height - bitmap.height * array[MSCALE_X]) / 2
             matrix.postTranslate(-1 * dx, -1 * dy)
-            matrix.postTranslate(0f, (stickerView.height - bitmap.height * array[0]) / 2)
+            matrix.postTranslate(0f, (stickerView.height - bitmap.height * array[MSCALE_X]) / 2)
             stickerView.invalidate()
         }
     }
@@ -73,9 +76,9 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                     val newDistance = StickerUtils.calculateDistance(p1, p2)
                     val newRatio = newDistance / distance
                     matrix.getValues(array)
-                    val x = array[2]
-                    val y = array[5]
-                    val oldRatio = array[0]
+                    val x = array[MTRANS_X]
+                    val y = array[MTRANS_Y]
+                    val oldRatio = array[MSCALE_X]
 
                     //双指缩放
                     matrix.postScale(newRatio,
@@ -92,6 +95,7 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                         y + bitmap.height * oldRatio / 2)
                     point1 = p1
                     point2 = p2
+//                    Log.e(TAG, "onTouchEvent: ${getAngle()}", )
                     stickerView.invalidate()
                 }
             }
@@ -107,8 +111,8 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
 
             MotionEvent.ACTION_UP -> {
                 matrix.getValues(array)
-                val x = array[2]
-                val y = array[5]
+                val x = array[MTRANS_X]
+                val y = array[MTRANS_Y]
                 Log.e(TAG, "onTouchEvent: $x $y")
                 rebound(x, y)
             }
@@ -121,7 +125,7 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
      */
     private fun rebound(x: Float, y: Float) {
         matrix.getValues(array)
-        val scaleRatio = array[0]
+        val scaleRatio = array[MSCALE_X]
         val bW = bitmap.width * scaleRatio
         val bH = bitmap.height * scaleRatio
         val vW = stickerView.width
@@ -138,22 +142,37 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                 val value = it.animatedValue as Float
                 matrix.getValues(array)
                 if (x < 0) {
-                    matrix.postTranslate(x * value - array[2], 0f)
+                    matrix.postTranslate(x * value - array[MTRANS_X], 0f)
                 }
                 if (x + bW > vW) {
-                    matrix.postTranslate((x - (vW - bW)) * value + (vW - bW) - array[2], 0f)
+                    matrix.postTranslate((x - (vW - bW)) * value + (vW - bW) - array[MTRANS_X], 0f)
                 }
 
                 if (y < 0) {
-                    matrix.postTranslate(0f, y * value - array[5])
+                    matrix.postTranslate(0f, y * value - array[MTRANS_Y])
                 }
                 if (y + bH > vH) {
-                    matrix.postTranslate(0f, (y - (vH - bH)) * value + (vH - bH) - array[5])
+                    matrix.postTranslate(0f, (y - (vH - bH)) * value + (vH - bH) - array[MTRANS_Y])
                 }
                 stickerView.invalidate()
             }
             anim.start()
         }
+    }
+
+    private fun mapRect(){
+        matrix.getValues(array)
+        val rectF = RectF()
+        rectF.top = array[MTRANS_Y]
+        rectF.left = array[MTRANS_X]
+
+    }
+
+    /**
+     * 图片旋转角度
+     */
+    private fun getAngle(): Int {
+        return (atan2(array[MSKEW_X], array[MSCALE_X]) * (180 / Math.PI)).roundToInt()
     }
 
     fun setImage(image: Any) {
