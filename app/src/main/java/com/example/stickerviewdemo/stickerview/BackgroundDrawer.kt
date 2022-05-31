@@ -8,6 +8,7 @@ import android.view.MotionEvent
 import android.view.animation.AccelerateDecelerateInterpolator
 import com.example.stickerviewdemo.R
 import kotlin.math.atan2
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
@@ -25,6 +26,8 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
 
     //matrix展开后的数组 MTRANS_X
     private val array = FloatArray(9)
+    private val maxScale = 2.0f
+    private val minScale = 0.2f
 
     init {
         stickerView.post {
@@ -79,23 +82,23 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                     val x = array[MTRANS_X]
                     val y = array[MTRANS_Y]
                     val oldRatio = array[MSCALE_X]
-
-                    //双指缩放
-                    matrix.postScale(newRatio,
-                        newRatio,
-                        x + bitmap.width * oldRatio / 2,
-                        y + bitmap.height * oldRatio / 2)
+                    if((oldRatio>=maxScale && newRatio < 1) || (oldRatio <=minScale && newRatio > 1) || oldRatio in minScale..maxScale){
+                        //双指缩放
+                        matrix.postScale(newRatio,
+                            newRatio,
+                            x + bitmap.width * oldRatio / 2,
+                            y + bitmap.height * oldRatio / 2)
+                    }
                     distance = newDistance
-
                     //双指旋转
                     val d1 = StickerUtils.calculateDegree(point1,point2)
                     val d2 = StickerUtils.calculateDegree(p1, p2)
-                    matrix.postRotate((d2-d1).toFloat(),
-                        x + bitmap.width * oldRatio / 2,
-                        y + bitmap.height * oldRatio / 2)
+//                    matrix.postRotate((d2-d1).toFloat(),
+//                        x + bitmap.width * oldRatio / 2,
+//                        y + bitmap.height * oldRatio / 2)
                     point1 = p1
                     point2 = p2
-//                    Log.e(TAG, "onTouchEvent: ${getAngle()}", )
+//                    Log.e(TAG, "onTouchEvent: getangle = ${getAngle()}  d2-d1 = ${d2-d1}", )
                     stickerView.invalidate()
                 }
             }
@@ -113,7 +116,6 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                 matrix.getValues(array)
                 val x = array[MTRANS_X]
                 val y = array[MTRANS_Y]
-                Log.e(TAG, "onTouchEvent: $x $y")
                 rebound(x, y)
             }
         }
