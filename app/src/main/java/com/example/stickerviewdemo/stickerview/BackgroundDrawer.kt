@@ -3,13 +3,10 @@ package com.example.stickerviewdemo.stickerview
 import android.animation.ValueAnimator
 import android.graphics.*
 import android.graphics.Matrix.*
-import android.util.Log
 import android.view.MotionEvent
 import android.view.animation.AccelerateDecelerateInterpolator
 import com.example.stickerviewdemo.R
-import kotlin.math.atan2
-import kotlin.math.min
-import kotlin.math.roundToInt
+import kotlin.math.*
 
 /**
  * 贴纸背景
@@ -28,6 +25,12 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
     private val array = FloatArray(9)
     private val maxScale = 2.0f
     private val minScale = 0.2f
+    private val rectF = RectF()
+    private val p = Paint().apply {
+        color = Color.RED
+        this.strokeWidth = 10f
+        style = Paint.Style.STROKE
+    }
 
     init {
         stickerView.post {
@@ -45,6 +48,7 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
 
     override fun onDraw(canvas: Canvas?) {
         canvas?.drawBitmap(bitmap, matrix, paint)
+        canvas?.drawRect(rectF, p)
     }
 
     private var point1 = PointF(0f, 0f)
@@ -70,6 +74,7 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                     matrix.postTranslate(dx, dy)
                     point1.x = event.x
                     point1.y = event.y
+                    mapRect()
                     stickerView.invalidate()
                 }
 
@@ -82,7 +87,10 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                     val x = array[MTRANS_X]
                     val y = array[MTRANS_Y]
                     val oldRatio = array[MSCALE_X]
-                    if((oldRatio>=maxScale && newRatio < 1) || (oldRatio <=minScale && newRatio > 1) || oldRatio in minScale..maxScale){
+                    if ((oldRatio >= maxScale && newRatio < 1)
+                        || (oldRatio <= minScale && newRatio > 1)
+                        || oldRatio in minScale..maxScale
+                    ) {
                         //双指缩放
                         matrix.postScale(newRatio,
                             newRatio,
@@ -91,14 +99,14 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                     }
                     distance = newDistance
                     //双指旋转
-                    val d1 = StickerUtils.calculateDegree(point1,point2)
+                    val d1 = StickerUtils.calculateDegree(point1, point2)
                     val d2 = StickerUtils.calculateDegree(p1, p2)
-//                    matrix.postRotate((d2-d1).toFloat(),
-//                        x + bitmap.width * oldRatio / 2,
-//                        y + bitmap.height * oldRatio / 2)
+                    matrix.postRotate((d2 - d1).toFloat(),
+                        (rectF.left+rectF.right) / 2,
+                        (rectF.top+rectF.bottom) / 2)
                     point1 = p1
                     point2 = p2
-//                    Log.e(TAG, "onTouchEvent: getangle = ${getAngle()}  d2-d1 = ${d2-d1}", )
+                    mapRect()
                     stickerView.invalidate()
                 }
             }
@@ -156,25 +164,42 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                 if (y + bH > vH) {
                     matrix.postTranslate(0f, (y - (vH - bH)) * value + (vH - bH) - array[MTRANS_Y])
                 }
+                mapRect()
                 stickerView.invalidate()
             }
             anim.start()
         }
     }
 
-    private fun mapRect(){
+    /**
+     * 图片映射成矩形
+     */
+    private fun mapRect() {
         matrix.getValues(array)
-        val rectF = RectF()
+        val width = bitmap.width * array[MSCALE_X]
+        val height = bitmap.height * array[MSCALE_X]
         rectF.top = array[MTRANS_Y]
         rectF.left = array[MTRANS_X]
+        rectF.right = rectF.left + width
+        rectF.bottom = rectF.top + height
+        var angle = Math.toRadians(getAngle())
+        val line = width * tan(abs(angle)).toFloat()
+        angle %= 360
+        if (angle < 0) {
+            rectF.left -= line
+            rectF.bottom += line
+        } else {
+            rectF.top -= line
+            rectF.right += line
+        }
 
     }
 
     /**
      * 图片旋转角度
      */
-    private fun getAngle(): Int {
-        return (atan2(array[MSKEW_X], array[MSCALE_X]) * (180 / Math.PI)).roundToInt()
+    private fun getAngle(): Double {
+        return (atan2(array[MSKEW_X], array[MSCALE_X]) * (180 / Math.PI))
     }
 
     fun setImage(image: Any) {
