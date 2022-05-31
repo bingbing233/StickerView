@@ -3,6 +3,7 @@ package com.example.stickerviewdemo.stickerview
 import android.animation.ValueAnimator
 import android.graphics.*
 import android.graphics.Matrix.*
+import android.util.Log
 import android.view.MotionEvent
 import android.view.animation.AccelerateDecelerateInterpolator
 import com.example.stickerviewdemo.R
@@ -31,6 +32,11 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
         this.strokeWidth = 10f
         style = Paint.Style.STROKE
     }
+    var angle = 0
+    private val pAngle = Paint().apply {
+        color = Color.RED
+        textSize = 50f
+    }
 
     init {
         stickerView.post {
@@ -49,6 +55,7 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
     override fun onDraw(canvas: Canvas?) {
         canvas?.drawBitmap(bitmap, matrix, paint)
         canvas?.drawRect(rectF, p)
+        canvas?.drawText("angle = ${angle.toString()}",rectF.left,rectF.top,pAngle)
     }
 
     private var point1 = PointF(0f, 0f)
@@ -87,16 +94,16 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                     val x = array[MTRANS_X]
                     val y = array[MTRANS_Y]
                     val oldRatio = array[MSCALE_X]
-                    if ((oldRatio >= maxScale && newRatio < 1)
-                        || (oldRatio <= minScale && newRatio > 1)
-                        || oldRatio in minScale..maxScale
-                    ) {
+//                    if ((oldRatio >= maxScale && newRatio < 1)
+//                        || (oldRatio <= minScale && newRatio > 1)
+//                        || oldRatio in minScale..maxScale
+//                    ) {
                         //双指缩放
                         matrix.postScale(newRatio,
                             newRatio,
                             x + bitmap.width * oldRatio / 2,
                             y + bitmap.height * oldRatio / 2)
-                    }
+//                    }
                     distance = newDistance
                     //双指旋转
                     val d1 = StickerUtils.calculateDegree(point1, point2)
@@ -182,9 +189,10 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
         rectF.left = array[MTRANS_X]
         rectF.right = rectF.left + width
         rectF.bottom = rectF.top + height
+        angle = getAngle().roundToInt()
         var angle = Math.toRadians(getAngle())
         val line = width * tan(abs(angle)).toFloat()
-        angle %= 360
+        Log.e(TAG, "mapRect: angle = ${getAngle()}", )
         if (angle < 0) {
             rectF.left -= line
             rectF.bottom += line
