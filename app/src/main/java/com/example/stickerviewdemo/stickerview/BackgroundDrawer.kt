@@ -66,7 +66,7 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
         when (event?.actionMasked) {
 
             MotionEvent.ACTION_DOWN -> {
-                if (event.pointerCount == 1 ) {
+                if (event.pointerCount == 1) {
                     point1.x = event.x
                     point1.y = event.y
                 }
@@ -129,8 +129,9 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
 
             MotionEvent.ACTION_UP -> {
                 matrix.getValues(array)
-                val x = array[MTRANS_X]
-                val y = array[MTRANS_Y]
+                mapRect()
+                val x = rectF.left
+                val y = rectF.top
                 rebound(x, y)
                 canMove = true
             }
@@ -142,42 +143,74 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
      * 当图片超出view的边界时，回弹到中心
      */
     private fun rebound(x: Float, y: Float) {
-        matrix.getValues(array)
+        val vW = stickerView.width
+        val vH = stickerView.height
         val scaleRatio = array[MSCALE_X]
         val bW = bitmap.width * scaleRatio
         val bH = bitmap.height * scaleRatio
-        val vW = stickerView.width
-        val vH = stickerView.height
-
-        if (x < 0 ||
-            y < 0 ||
-            x + bW > vW ||
-            y + bH > vH
-        ) {
+        mapRect()
+        if (rectF.top < 0 || rectF.right > vW || rectF.left < 0 || rectF.bottom > vH) {
             val anim = ValueAnimator.ofFloat(1f, 0f)
             anim.interpolator = AccelerateDecelerateInterpolator()
             anim.addUpdateListener {
-                val value = it.animatedValue as Float
-                matrix.getValues(array)
-                if (x < 0) {
-                    matrix.postTranslate(x * value - array[MTRANS_X], 0f)
-                }
-                if (x + bW > vW) {
-                    matrix.postTranslate((x - (vW - bW)) * value + (vW - bW) - array[MTRANS_X], 0f)
-                }
-
-                if (y < 0) {
-                    matrix.postTranslate(0f, y * value - array[MTRANS_Y])
-                }
-                if (y + bH > vH) {
-                    matrix.postTranslate(0f, (y - (vH - bH)) * value + (vH - bH) - array[MTRANS_Y])
-                }
                 mapRect()
+                matrix.getValues(array)
+                val value = it.animatedValue as Float
+                if (rectF.top < 0) {
+                    matrix.postTranslate(0f, y * value - rectF.top)
+                }
+                if (rectF.bottom > vH) {
+                    matrix.postTranslate(0f, (y + rectF.height() - vH) * value + vH - rectF.bottom)
+                }
+                if (rectF.left < 0) {
+                    matrix.postTranslate(x * value - rectF.left, 0f)
+                }
+                if (rectF.right > vW) {
+                    matrix.postTranslate((x + rectF.width() - vW) * value + vW - rectF.right, 0f)
+                }
                 stickerView.invalidate()
             }
             anim.start()
         }
     }
+
+//    private fun rebound(x: Float, y: Float) {
+//        matrix.getValues(array)
+//        val scaleRatio = array[MSCALE_X]
+//        val bW = bitmap.width * scaleRatio
+//        val bH = bitmap.height * scaleRatio
+//        val vW = stickerView.width
+//        val vH = stickerView.height
+//
+//        if (x < 0 ||
+//            y < 0 ||
+//            x + bW > vW ||
+//            y + bH > vH
+//        ) {
+//            val anim = ValueAnimator.ofFloat(1f, 0f)
+//            anim.interpolator = AccelerateDecelerateInterpolator()
+//            anim.addUpdateListener {
+//                val value = it.animatedValue as Float
+//                matrix.getValues(array)
+//                if (x < 0) {
+//                    matrix.postTranslate(x * value - array[MTRANS_X], 0f)
+//                }
+//                if (x + bW > vW) {
+//                    matrix.postTranslate((x - (vW - bW)) * value + (vW - bW) - array[MTRANS_X], 0f)
+//                }
+//
+//                if (y < 0) {
+//                    matrix.postTranslate(0f, y * value - array[MTRANS_Y])
+//                }
+//                if (y + bH > vH) {
+//                    matrix.postTranslate(0f, (y - (vH - bH)) * value + (vH - bH) - array[MTRANS_Y])
+//                }
+//                mapRect()
+//                stickerView.invalidate()
+//            }
+//            anim.start()
+//        }
+//    }
 
     /**
      * 图片映射成矩形
