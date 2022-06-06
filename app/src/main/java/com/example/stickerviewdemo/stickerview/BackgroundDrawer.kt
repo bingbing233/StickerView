@@ -3,7 +3,6 @@ package com.example.stickerviewdemo.stickerview
 import android.animation.ValueAnimator
 import android.graphics.*
 import android.graphics.Matrix.*
-import android.util.Log
 import android.view.MotionEvent
 import android.view.animation.AccelerateDecelerateInterpolator
 import com.example.stickerviewdemo.R
@@ -32,7 +31,6 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
         this.strokeWidth = 10f
         style = Paint.Style.STROKE
     }
-    var angle = 0
     private val pAngle = Paint().apply {
         color = Color.RED
         textSize = 50f
@@ -55,19 +53,20 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
     override fun onDraw(canvas: Canvas?) {
         canvas?.drawBitmap(bitmap, matrix, paint)
         canvas?.drawRect(rectF, p)
-        canvas?.drawText("angle = ${angle.toString()}",rectF.left,rectF.top,pAngle)
+        canvas?.drawCircle(array[MTRANS_X], array[MTRANS_Y], 4f, p)
     }
 
     private var point1 = PointF(0f, 0f)
     private var point2 = PointF(0f, 0f)
     private var distance = 0f
 
+    var canMove = true
     override fun onTouchEvent(event: MotionEvent?): Boolean {
         //这里使用actionMasked，只有actionMask才能检测到多指按下
         when (event?.actionMasked) {
 
             MotionEvent.ACTION_DOWN -> {
-                if (event.pointerCount == 1) {
+                if (event.pointerCount == 1 ) {
                     point1.x = event.x
                     point1.y = event.y
                 }
@@ -75,7 +74,7 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
 
             MotionEvent.ACTION_MOVE -> {
                 //单指移动背景
-                if (event.pointerCount == 1) {
+                if (event.pointerCount == 1 && canMove) {
                     val dx = event.x - point1.x
                     val dy = event.y - point1.y
                     matrix.postTranslate(dx, dy)
@@ -86,6 +85,7 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                 }
 
                 if (event.pointerCount == 2) {
+                    canMove = false
                     val p1 = PointF(event.getX(0), event.getY(0))
                     val p2 = PointF(event.getX(1), event.getY(1))
                     val newDistance = StickerUtils.calculateDistance(p1, p2)
@@ -98,19 +98,19 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
 //                        || (oldRatio <= minScale && newRatio > 1)
 //                        || oldRatio in minScale..maxScale
 //                    ) {
-                        //双指缩放
-                        matrix.postScale(newRatio,
-                            newRatio,
-                            x + bitmap.width * oldRatio / 2,
-                            y + bitmap.height * oldRatio / 2)
+                    //双指缩放
+                    matrix.postScale(newRatio,
+                        newRatio,
+                        x + bitmap.width * oldRatio / 2,
+                        y + bitmap.height * oldRatio / 2)
 //                    }
                     distance = newDistance
                     //双指旋转
                     val d1 = StickerUtils.calculateDegree(point1, point2)
                     val d2 = StickerUtils.calculateDegree(p1, p2)
                     matrix.postRotate((d2 - d1).toFloat(),
-                        (rectF.left+rectF.right) / 2,
-                        (rectF.top+rectF.bottom) / 2)
+                        (rectF.left + rectF.right) / 2,
+                        (rectF.top + rectF.bottom) / 2)
                     point1 = p1
                     point2 = p2
                     mapRect()
@@ -132,6 +132,7 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
                 val x = array[MTRANS_X]
                 val y = array[MTRANS_Y]
                 rebound(x, y)
+                canMove = true
             }
         }
         return true
@@ -181,31 +182,47 @@ class BackgroundDrawer(private val stickerView: StickerView) : IDrawer {
     /**
      * 图片映射成矩形
      */
+
     private fun mapRect() {
         matrix.getValues(array)
-        val width = bitmap.width * array[MSCALE_X]
-        val height = bitmap.height * array[MSCALE_X]
-        rectF.top = array[MTRANS_Y]
-        rectF.left = array[MTRANS_X]
-        rectF.right = rectF.left + width
-        rectF.bottom = rectF.top + height
-        angle = getAngle().roundToInt()
-        var angle = Math.toRadians(getAngle())
-        val line = width * tan(abs(angle)).toFloat()
-        Log.e(TAG, "mapRect: angle = ${getAngle()}", )
-        if (angle < 0) {
-            rectF.left -= line
-            rectF.bottom += line
-        } else {
-            rectF.top -= line
-            rectF.right += line
-        }
+        val width = abs(bitmap.width * array[MSCALE_X])
+        val height = abs(bitmap.height * array[MSCALE_X])
+        val angle = getAngle()
+        var radian = Math.toRadians(getAngle())
+        val line = abs(width * tan(abs(radian)).toFloat())  //是那条短的变
 
+        when (angle) {
+            in -90.0..0.0 -> {
+                rectF.left = array[MTRANS_X] - line
+                rectF.right = array[MTRANS_X] + width
+                rectF.top = array[MTRANS_Y]
+                rectF.bottom = array[MTRANS_Y] + height + line
+            }
+            in 0.0..90.0 -> {
+                rectF.left = array[MTRANS_X]
+                rectF.right = array[MTRANS_X] + line + width
+                rectF.top = array[MTRANS_Y] - line
+                rectF.bottom = array[MTRANS_Y] + height
+            }
+            in -180.0..-90.0 -> {
+                rectF.left = array[MTRANS_X] - height - line
+                rectF.right = array[MTRANS_X]
+                rectF.top = array[MTRANS_Y] - height
+                rectF.bottom = array[MTRANS_Y] + line
+            }
+            in 90.0..180.0 -> {
+                rectF.left = array[MTRANS_X] - width
+                rectF.right = array[MTRANS_X] + line
+                rectF.top = array[MTRANS_Y] - height - line
+                rectF.bottom = array[MTRANS_Y]
+            }
+        }
     }
 
     /**
      * 图片旋转角度
      */
+    @JvmName("getAngle1")
     private fun getAngle(): Double {
         return (atan2(array[MSKEW_X], array[MSCALE_X]) * (180 / Math.PI))
     }
