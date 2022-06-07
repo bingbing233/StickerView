@@ -1,6 +1,8 @@
 package com.example.stickerviewdemo.stickerview
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.util.AttributeSet
 import android.view.MotionEvent
@@ -12,34 +14,34 @@ class StickerView @JvmOverloads constructor(
     defStyle: Int = 0,
 ) : View(context, attributeSet, defStyle) {
 
-    val TAG = "StickerView"
-
-    //    var viewModelStoreOwner:ViewModelStoreOwner?=null
-//    val viewModel by lazy {
-//        ViewModelProvider(viewModelStoreOwner!!).get(StickerViewModel::class.java)
-//    }
-//
-//    init {
-//        if(viewModelStoreOwner == null){
-//            viewModelStoreOwner = ViewTreeViewModelStoreOwner.get(this)
-//            Log.e(TAG, "if you want to use viewModel to manage this view,init viewModelStoreOwner first.", )
-//        }
-//    }
     private val presenter = StickerPresenter(this)
 
     override fun onDraw(canvas: Canvas?) {
-        super.onDraw(canvas)
         presenter.onDraw(canvas)
     }
 
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent?): Boolean {
         return presenter.onTouchEvent(event)
     }
 
-    /**
-     * 背景图，缩放、移动
-     */
-    fun setBackgroundImage(image: Any) {
-        presenter.setBackgroundImage(image)
+    fun addSticker(bitmap: Bitmap){
+        presenter.addSticker(bitmap)
+    }
+
+    fun clearSticker(){
+        presenter.clearSticker()
+    }
+
+    fun setBackground(bitmap: Bitmap) {
+        presenter.setBackground(bitmap)
+    }
+
+    fun clearBackground(){
+        presenter.clearBackground()
     }
 }

@@ -13,7 +13,7 @@ import kotlin.math.sqrt
 
 object StickerUtils {
 
-    fun setImage(context: Context? = null, image: Any): Bitmap? {
+    fun getImage(context: Context? = null, image: Any): Bitmap? {
         when (image) {
             is String -> {
                 return BitmapFactory.decodeFile(image)

@@ -1,30 +1,33 @@
-package com.example.stickerviewdemo.stickerview
+package com.example.stickerviewdemo.stickerview.drawer
 
 import android.animation.ValueAnimator
 import android.graphics.*
 import android.view.MotionEvent
 import android.view.animation.AccelerateDecelerateInterpolator
+import com.example.stickerviewdemo.stickerview.StickerUtils
+import com.example.stickerviewdemo.stickerview.StickerView
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.tan
 
 /**
  * 贴纸、背景图抽象成Drawer
- * 都有出界回弹、手势的功能
+ * 实现出界回弹、手势的功能
  */
-abstract class Drawer(val stickerView: StickerView, val bitmap: Bitmap) {
+abstract class Drawer(val stickerView: StickerView, var bitmap: Bitmap) {
 
     val TAG = javaClass.simpleName
     val matrix = Matrix()
-    val paint = Paint()
-    val rectF = RectF()
+    private val paint = Paint()
+    private val rectF = RectF()
     val array = FloatArray(9)
 
     private var point1 = PointF(0f, 0f)
     private var point2 = PointF(0f, 0f)
     private var distance = 0f
+    //用于控制双指缩放或旋转时禁止移动
     private var canMove = true
-    //是否消费单指或双指时间
+    //是否消费单指或双指时间，用于不同贴纸间的事件拦截处理
     private var consumeTapOne = false
     private var consumeTapTwin = false
 
@@ -34,7 +37,6 @@ abstract class Drawer(val stickerView: StickerView, val bitmap: Bitmap) {
             stickerView.invalidate()
         }
     }
-
 
     open fun onDraw(canvas: Canvas?) {
         canvas?.drawBitmap(bitmap, matrix, paint)
@@ -78,25 +80,25 @@ abstract class Drawer(val stickerView: StickerView, val bitmap: Bitmap) {
                     val x = array[Matrix.MTRANS_X]
                     val y = array[Matrix.MTRANS_Y]
                     val oldRatio = array[Matrix.MSCALE_X]
-//                    if ((oldRatio >= maxScale && newRatio < 1)
-//                        || (oldRatio <= minScale && newRatio > 1)
-//                        || oldRatio in minScale..maxScale
-//                    ) {
-                    //双指缩放
-                    matrix.postScale(newRatio,
-                        newRatio,
-                        x + bitmap.width * oldRatio / 2,
-                        y + bitmap.height * oldRatio / 2)
+                    if(allowScale()){
+                        //双指缩放
+                        matrix.postScale(newRatio,
+                            newRatio,
+                            x + bitmap.width * oldRatio / 2,
+                            y + bitmap.height * oldRatio / 2)
 //                    }
-                    distance = newDistance
-                    //双指旋转
-                    val d1 = StickerUtils.calculateDegree(point1, point2)
-                    val d2 = StickerUtils.calculateDegree(p1, p2)
-                    matrix.postRotate((d2 - d1).toFloat(),
-                        (rectF.left + rectF.right) / 2,
-                        (rectF.top + rectF.bottom) / 2)
-                    point1 = p1
-                    point2 = p2
+                        distance = newDistance
+                    }
+                    if(allowRotation()){
+                        //双指旋转
+                        val d1 = StickerUtils.calculateDegree(point1, point2)
+                        val d2 = StickerUtils.calculateDegree(p1, p2)
+                        matrix.postRotate((d2 - d1).toFloat(),
+                            (rectF.left + rectF.right) / 2,
+                            (rectF.top + rectF.bottom) / 2)
+                        point1 = p1
+                        point2 = p2
+                    }
                     mapRect()
                     stickerView.invalidate()
                     return true
@@ -134,8 +136,8 @@ abstract class Drawer(val stickerView: StickerView, val bitmap: Bitmap) {
      */
     fun mapRect(): RectF {
         matrix.getValues(array)
-        val width = abs(bitmap!!.width * array[Matrix.MSCALE_X])
-        val height = abs(bitmap!!.height * array[Matrix.MSCALE_X])
+        val width = abs(bitmap.width * array[Matrix.MSCALE_X])
+        val height = abs(bitmap.height * array[Matrix.MSCALE_X])
         val angle = getRotationDegree()
         var radian = Math.toRadians(getRotationDegree())
         val line = abs(width * tan(abs(radian)).toFloat())  //是那条短的变
@@ -229,8 +231,11 @@ abstract class Drawer(val stickerView: StickerView, val bitmap: Bitmap) {
      */
     private fun checkTouch(x: Float,y: Float): Boolean {
         mapRect()
-        if (x in rectF.left..rectF.right && y in rectF.top..rectF.bottom)
+        if (x in rectF.left-10..rectF.right+10 && y in rectF.top-10..rectF.bottom+10)
             return true
         return false
     }
+
+    open fun allowRotation() = true
+    open fun allowScale() = true
 }
